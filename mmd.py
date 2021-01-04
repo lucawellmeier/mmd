@@ -50,7 +50,7 @@ class Parser:
         self.blocks.append(make_block(type_=match.group(1), 
             id_=match.group(3) if match.group(3) else '', 
             name=match.group(4).strip() if match.group(4) else '', 
-            content=content))
+            content=content.strip()))
     def add_paragraph(self):
         content = ''
         line = self.lines[self.pos]
@@ -60,7 +60,7 @@ class Parser:
             if self.pos == len(self.lines): break
             line = self.lines[self.pos]
         if line and not line.isspace():
-            self.blocks.append(make_block(content=content))
+            self.blocks.append(make_block(content=content.strip()))
 
 def parse(code):
     return Parser(code).blocks

@@ -1,4 +1,4 @@
-from mmd.parser import parse
+from mmd import parse
 
 
 
@@ -19,7 +19,7 @@ def test_1():
     assert len(blocks) == 3
     assert blocks[0]['type'] == 'DEFN'
     assert blocks[1]['id'] == 'id5'
-    assert blocks[1]['content'] == ' Hallo\n'
+    assert blocks[1]['content'] == 'Hallo'
     assert blocks[2]['type'] == 'THM'
     assert blocks[2]['id'] == ''
 
@@ -43,7 +43,7 @@ def test_2():
     assert len(blocks) == 2
     assert blocks[0]['type'] == '#' and blocks[1]['type'] == 'PROOF'
     assert blocks[1]['name'] == '' and blocks[1]['id'] == ''
-    assert blocks[1]['content'].count('\n') == 5
+    assert blocks[1]['content'].count('\n') == 4
 
 
 
@@ -66,4 +66,4 @@ def test_3():
     assert len(blocks) == 6
     assert blocks[3]['type'] == 'LEMMA'
     assert blocks[4]['type'] == '###'
-    assert blocks[5]['content'] == ' \n'
+    assert blocks[5]['content'] == ''
