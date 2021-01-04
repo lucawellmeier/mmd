@@ -3,14 +3,6 @@ import markdown2
 
 
 
-DIRECTIVES = ['DEFN', 'LEMMA', 'PROP', 'THM', 'CORL', 'EXM', 'EXC', 'PROOF']
-
-LATEX_DISPLAY_DELIMS = [ ('$$', '$$'), ('\\[', '\\]') ]
-LATEX_INLINE_DELIMS = [ ('$', '$'), ('\\(', '\\)') ]
-LATEX_DELIMS = LATEX_DISPLAY_DELIMS + LATEX_INLINE_DELIMS
-
-
-
 class ParsingError(Exception): pass
 
 def make_block(type_='', id_='', name='', content=''):
@@ -75,84 +67,21 @@ def parse(code):
 
 
 
-
-
-
-
-
-
-
-'''
-def _parse_arg_string(args):
-    f = args.find('#')
-    if f == -1:
-        return args.strip(), []
-    tags = [x.strip() for x in args[f:].split('#') if x.strip()]
-    return args[:f].strip(), tags 
-
-def parse_mmd(code):
-    lines = code.split('\n')
-
-    # parse structure directives
-    found_dirs = []
-    for i in range(len(lines)):
-        if len(lines[i]) == 0:
-            continue
-        toks = lines[i].split(' ', 2)
-        if toks[0] not in DIRS:
-            if len(toks[0]) == 0:
-                continue
-            startsasno = toks[0][0].isdigit() or toks[0][0] in ['+', '-']
-            if startsasno and toks[0][0:].isdigit():
-                id_ = int(toks[0][0:])
-                if len(toks) > 1 and toks[1] in DIRS:
-                    args = toks[2] if len(toks) > 2 else '' 
-                    found_dirs.append((i, toks[1], args, id_))
-        else:
-            arg_split = lines[i].split(' ', 1)
-            args = arg_split[1] if len(arg_split) > 1 else ''
-            found_dirs.append((i, toks[0], args, None))
-    
-    # assign code lines to directives
-    parts = []
-    for j in range(len(found_dirs)):
-        start = found_dirs[j][0] + 1
-        end = found_dirs[j + 1][0] if j + 1 < len(found_dirs) else len(lines)
-        name, tags = _parse_arg_string(found_dirs[j][2])
-        part = { 'type': found_dirs[j][1],
-            'name': name, 'tags': tags,
-            'text': '\n'.join(lines[start:end]),
-            'id': found_dirs[j][3] }
-        parts.append(part)
-
-    return parts
-
-def create_mmd_piece(id_, type_, name, text, tags):
-    mmd = ''
-    if id_ is not None:
-        mmd += str(id_) + ' '
-    mmd += type_
-    if name:
-        mmd += ' ' + name
-    if tags:
-        mmd += ' #' + ' #'.join(tags)
-    mmd += '\n' + text
-    return mmd
+LATEX_DISPLAY_DELIMS = [ ('$$', '$$'), ('\\[', '\\]') ]
+LATEX_INLINE_DELIMS = [ ('$', '$'), ('\\(', '\\)') ]
+LATEX_DELIMS = LATEX_DISPLAY_DELIMS + LATEX_INLINE_DELIMS
 
 class LatexSanitizer:
     def __init__(self):
         self.subs_rep = 16
         self.storage = []
-
     def sanitize(self, code):
         for pair in LATEX_DELIMS:
             code = self._sanitize_perpair(pair, code)
         return code
-
     def _sanitize_perpair(self, pair, code):
         l = pair[0]
         r = pair[1]
-        # assuming the latex is correct......hehe
         while True:
             a = code.find(l)
             b = code.find(r, a + 1)
@@ -163,7 +92,6 @@ class LatexSanitizer:
                 self.storage.append(code[a:b + len(r)])
                 code = ''.join([code[:a], c, code[b + len(r):]])
         return code
-
     def reinsert(self, code):
         for i in range(len(self.storage)):
             c = self.subs_rep * str(i)
@@ -172,9 +100,8 @@ class LatexSanitizer:
             code = ''.join([code[:a], self.storage[i], code[b:]])
         return code
 
-def mmdtext_to_html(mmdtext):
+def block_content_to_html(block):
     sanitizer = LatexSanitizer()
-    sanitizedmmd = sanitizer.sanitize(mmdtext)
-    sanitizedhtml = markdown2.markdown(sanitizedmmd)
-    return sanitizer.reinsert(sanitizedhtml)
-'''
+    sanitized_md = sanitizer.sanitize(block['content'])
+    sanitized_html = markdown2.markdown(sanitized_md)
+    return sanitizer.reinsert(sanitized_html)

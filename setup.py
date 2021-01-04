@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Luca Wellmeier",
     author_email="luca_wellmeier@gmx.de",
-    description="Parser for the MMD format.",
+    description="Parser and HTML converter for the MMD format.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/lucawellmeier/mmd",
