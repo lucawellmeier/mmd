@@ -185,7 +185,6 @@ if __name__ == '__main__':
 '''<html>
 <head>
 <meta charset="utf-8">
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> 
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script>
@@ -209,17 +208,6 @@ MathJax = {
     border: 1px solid lightgrey;
     padding: 0 8px;
     padding-top: 8px;
-  }
-  .statement strong {
-    position: relative;
-  }
-  .statement strong .hint {
-    font-family: monospace;
-    font-weight: normal;
-    position: absolute;
-    background: silver;
-    padding: 4px;
-    white-space: nowrap;
   }
   .proof p:first-of-type {
     display: inline;
@@ -255,21 +243,5 @@ MathJax = {
             else:
                 f.write(content + '\n')
         f.write(
-'''<script>
-$(".statement").children('strong').click(function() {
-    $id = $(this).parent().attr("id");
-    if ($id.length) {
-        $id = "ID: " + $id;
-    } else {
-        $id = "no ID for this statement"
-    }
-    $hint = $(this).find('.hint');
-    if (!$hint.length) {
-        $(this).append('<span class="hint">' + $id + '</span>');
-    } else {
-        $hint.remove();
-    }
-});
-</script>
-</body>
+'''</body>
 </html>''')
