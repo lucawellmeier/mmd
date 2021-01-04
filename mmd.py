@@ -201,8 +201,9 @@ MathJax = {
 <style>
   body {
     font-size: 14px;
-    max-width: 600px;
+    max-width: 672px;
     margin: 24px auto;
+    padding: 0 8px;
   }
   .statement {
     border: 1px solid lightgrey;
@@ -219,6 +220,7 @@ MathJax = {
 </head>
 <body>
 ''')
+        toc_inserted = False
         for block in blocks:
             content = block_content_to_html(block)
             if block['type'] in ['LEMMA', 'THEOREM', 'PROPOSITION', 'COROLLARY']:
@@ -236,6 +238,16 @@ MathJax = {
                 f.write(html)
             elif re.fullmatch('#+', block['type']):
                 lvl = len(block['type'])
+                if not toc_inserted and lvl == 2:
+                    toc_inserted = True
+                    headers = [block for block in blocks if re.fullmatch('#+', block['type']) and 2 <= len(block['type']) and len(block['type']) <= 3]
+                    for header in headers:
+                        id_ = '_'.join([str(c) for c in header['number']])
+                        num = '.'.join([str(c) for c in header['number']]) + '. '
+                        title = num + header['name']
+                        indent = (len(header['type']) - 1) * 8
+                        f.write('<a href="#{}" style="margin-left: {}px">{}</a><br>\n'.format(id_, indent, title))
+                    f.write('\n')
                 id_ = '_'.join([str(c) for c in block['number']])
                 num = '.'.join([str(c) for c in block['number']]) + '. ' if block['number'] else ''
                 html = '<h{} id={}>{}{}</h{}>\n'.format(lvl, id_, num, block['name'], lvl)
