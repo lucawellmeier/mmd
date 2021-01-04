@@ -23,8 +23,7 @@ class Parser:
         self.pos = 0
         self.header_regex = re.compile(r'(#+)(.*)')
         self.begin_dir_regex = re.compile(
-                r'(' + r'|'.join(DIRECTIVES) + r')(\[([a-zA-Z0-9-]+)\])?(.*)')
-        self.end_dir_regex = re.compile(r'.*END')
+                r'([A-Z]+)(\[([a-z0-9-]+)\])?(.*)')
         self.identify_next_block()
     def identify_next_block(self):
         if self.pos == len(self.lines): return 
@@ -50,20 +49,16 @@ class Parser:
     def add_dir(self, match):
         content = ''
         line = self.lines[self.pos]
-        matched_end = self.end_dir_regex.fullmatch(line)
-        while not matched_end:
-            content += line + '\n'
+        while line.startswith('>'):
+            content += line[1:] + '\n'
             self.pos += 1
             if self.pos == len(self.lines):
-                raise ParsingError('no END statement')
+                break
             line = self.lines[self.pos]
-            matched_end = self.end_dir_regex.fullmatch(line)
-        content += line[:-3]
         self.blocks.append(make_block(type_=match.group(1), 
             id_=match.group(3) if match.group(3) else '', 
             name=match.group(4).strip() if match.group(4) else '', 
             content=content))
-        self.pos += 1
     def add_paragraph(self):
         content = ''
         line = self.lines[self.pos]
