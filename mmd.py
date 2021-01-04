@@ -3,11 +3,6 @@ import markdown2
 
 
 
-class ParsingError(Exception): pass
-
-def make_block(type_='', id_='', name='', content=''):
-    return {'type': type_, 'id': id_, 'name': name, 'content': content }
-
 class Parser:
     def __init__(self, code):
         self.lines = code.splitlines()
@@ -15,7 +10,7 @@ class Parser:
         self.pos = 0
         self.header_regex = re.compile(r'(#+)(.*)')
         self.begin_dir_regex = re.compile(
-                r'([A-Z]+)(\[([a-z0-9-]+)\])?(.*)')
+                r'([A-Z]+)(\[([a-z0-9-]+)\])?( (.*))?')
         self.identify_next_block()
     def identify_next_block(self):
         if self.pos == len(self.lines): return 
@@ -35,22 +30,25 @@ class Parser:
             return self.identify_next_block()
         self.add_paragraph()
         return self.identify_next_block()
+    def add_block(self, type_='', id_='', name='', content=''):
+        block = {'type': type_, 'id': id_, 'name': name, 'content': content}
+        self.blocks.append(block)
     def add_header(self, match):
-        self.blocks.append(make_block(type_=match.group(1), 
-            name=match.group(2).strip()))
+        self.add_block(type_=match.group(1), name=match.group(2).strip())
     def add_dir(self, match):
         content = ''
-        line = self.lines[self.pos]
-        while line.startswith('>'):
-            content += line[1:] + '\n'
-            self.pos += 1
-            if self.pos == len(self.lines):
-                break
+        if self.pos < len(self.lines):
             line = self.lines[self.pos]
-        self.blocks.append(make_block(type_=match.group(1), 
+            while line.startswith('>'):
+                content += line[1:] + '\n'
+                self.pos += 1
+                if self.pos == len(self.lines):
+                    break
+                line = self.lines[self.pos]
+        self.add_block(type_=match.group(1), 
             id_=match.group(3) if match.group(3) else '', 
             name=match.group(4).strip() if match.group(4) else '', 
-            content=content.strip()))
+            content=content.strip())
     def add_paragraph(self):
         content = ''
         line = self.lines[self.pos]
@@ -59,11 +57,64 @@ class Parser:
             self.pos += 1
             if self.pos == len(self.lines): break
             line = self.lines[self.pos]
-        if line and not line.isspace():
-            self.blocks.append(make_block(content=content.strip()))
+        self.add_block(content=content.strip())
 
-def parse(code):
-    return Parser(code).blocks
+
+
+class SimpleNumberer:
+    def __init__(self, numbered_headers, numbered_subblocks):
+        self.numbered_headers = numbered_headers
+        self.numbered_subblocks = numbered_subblocks
+        self.counts = len(self.numbered_headers) * [0]
+        self.subblock_count = 0
+        self.last_level = 0
+    def track(self, block):
+        if block['type'] in self.numbered_headers:
+            level = self.numbered_headers.index(block['type'])
+            if level == 0:
+                self.subblock_count = 0
+            if level < self.last_level:
+                for i in range(level + 1, len(self.counts)):
+                    self.counts[i] = 0
+            self.counts[level] += 1
+            self.last_level = level
+            return tuple(self.counts[:level+1])
+        elif block['type'] in self.numbered_subblocks:
+            self.subblock_count += 1
+            return (self.counts[0], self.subblock_count)
+        else:
+            return ()
+
+
+
+class RefFinder:
+    def __init__(self, replacer):
+        self.ref_replacer = replacer
+        self.ref_regex = re.compile(r'<@([a-z0-9-]+)(|(.*))?>')
+    def replace_in(self, block):
+        match = self.ref_regex.search(block['content'])
+        while match:
+            a = match.span()[0]
+            b = match.span()[1]
+            ref = match.group(1)
+            name = match.group(2)
+            raw = block['content']
+            replaced = raw[:a] + self.ref_replacer(ref,name) + raw[b:]
+            block.update({'content': replaced})
+            match = self.ref_regex.search(block['content'])
+
+
+
+def parse(code, numberer=SimpleNumberer(numbered_headers=['##', '###'], 
+        numbered_subblocks=['LEMMA', 'THEOREM', 'PROPOSITION', 'COROLLARY']), 
+        ref_replacer=lambda blocks,ref,name : ''):
+    blocks = Parser(code).blocks
+    for block in blocks:
+        block.update({'number': numberer.track(block)})
+    ref_finder = RefFinder(lambda ref,name : ref_replacer(blocks,ref,name))
+    for block in blocks:
+        ref_finder.replace_in(block)
+    return blocks
 
 
 
@@ -105,3 +156,120 @@ def block_content_to_html(block):
     sanitized_md = sanitizer.sanitize(block['content'])
     sanitized_html = markdown2.markdown(sanitized_md)
     return sanitizer.reinsert(sanitized_html)
+
+
+
+################################################################################
+
+
+
+if __name__ == '__main__':
+    import os
+    import sys
+    filename = sys.argv[1]
+    with open(filename, 'r') as f:
+        code = f.read()
+
+    def ref_replacer(blocks, ref, name):
+        found = next((block for block in blocks if block['id'] == ref), [None])
+        if found != None:
+            name = found['type'].title() + ' ' + '.'.join([str(n) for n in found['number']])
+            return '<a href="#{}">{}</a>'.format(ref,name)
+        else:
+            return '<strong style="color: red;">reference {} not found</strong>'.format(ref)
+    blocks = parse(code, ref_replacer=ref_replacer)
+
+    newfile = os.path.splitext(filename)[0] + '.html'
+    with open(newfile, 'w') as f:
+        f.write(
+'''<html>
+<head>
+<meta charset="utf-8">
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> 
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+    displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']]
+  },
+  svg: {
+    fontCache: 'global'
+  }
+};
+</script>
+<style>
+  body {
+    font-size: 14px;
+    max-width: 600px;
+    margin: 24px auto;
+  }
+  .statement {
+    border: 1px solid lightgrey;
+    padding: 0 8px;
+    padding-top: 8px;
+  }
+  .statement strong {
+    position: relative;
+  }
+  .statement strong .hint {
+    font-family: monospace;
+    font-weight: normal;
+    position: absolute;
+    background: silver;
+    padding: 4px;
+    white-space: nowrap;
+  }
+  .proof p:first-of-type {
+    display: inline;
+  }
+  .proof p:last-child:after {
+    content: " \\220e";
+  }
+</style>
+</head>
+<body>
+''')
+        for block in blocks:
+            content = block_content_to_html(block)
+            if block['type'] in ['LEMMA', 'THEOREM', 'PROPOSITION', 'COROLLARY']:
+                html = '<p><div id="{}" class="statement">'.format(block['id'])
+                num = ' ' + '.'.join([str(c) for c in block['number']]) if block['number'] else ''
+                name = ' ({})'.format(block['name']) if block['name'] else ''
+                html += '<strong>{}{}</strong>{}:'.format(block['type'].title(), num, name)
+                html += content
+                html += '</div></p>\n'
+                f.write(html)
+            elif block['type'] == 'PROOF':
+                html = '<p><div class="proof"><strong>Proof.</strong> '
+                html += content
+                html += '</div>\n'
+                f.write(html)
+            elif re.fullmatch('#+', block['type']):
+                lvl = len(block['type'])
+                id_ = '_'.join([str(c) for c in block['number']])
+                num = '.'.join([str(c) for c in block['number']]) + '. ' if block['number'] else ''
+                html = '<h{} id={}>{}{}</h{}>\n'.format(lvl, id_, num, block['name'], lvl)
+                f.write(html)
+            else:
+                f.write(content + '\n')
+        f.write(
+'''<script>
+$(".statement").children('strong').click(function() {
+    $id = $(this).parent().attr("id");
+    if ($id.length) {
+        $id = "ID: " + $id;
+    } else {
+        $id = "no ID for this statement"
+    }
+    $hint = $(this).find('.hint');
+    if (!$hint.length) {
+        $(this).append('<span class="hint">' + $id + '</span>');
+    } else {
+        $hint.remove();
+    }
+});
+</script>
+</body>
+</html>''')

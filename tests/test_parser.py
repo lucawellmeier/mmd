@@ -67,3 +67,28 @@ def test_3():
     assert blocks[3]['type'] == 'LEMMA'
     assert blocks[4]['type'] == '###'
     assert blocks[5]['content'] == ''
+
+
+
+testcode4 = r'''
+# Review of basic measure theory
+
+Let $(X,d)$ be a locally compact and separable metric space. 
+A measure $\mu \colon X \to \mathbb{R}^p$ is a countably additive mapping, i.e. 
+\[
+    \mu(B) = \sum_{i \in \mathbb{N}} \mu(B_i)
+\]
+for a disjoint union $B = \bigsqcup_{i \in \mathbb{N}} B_i$.
+'''
+def test_4():
+    blocks = parse(testcode4)
+    assert len(blocks) == 2
+    assert blocks[1]['content'].count('\n') == 5
+
+
+
+testcode5 = r'''
+THEOREM'''
+def test_5():
+    blocks = parse(testcode5)
+    assert len(blocks) == 1
