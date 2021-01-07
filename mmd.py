@@ -124,7 +124,6 @@ LATEX_DELIMS = LATEX_DISPLAY_DELIMS + LATEX_INLINE_DELIMS
 
 class LatexSanitizer:
     def __init__(self):
-        self.subs_rep = 16
         self.storage = []
     def sanitize(self, code):
         for pair in LATEX_DELIMS:
@@ -135,19 +134,19 @@ class LatexSanitizer:
         r = pair[1]
         while True:
             a = code.find(l)
-            b = code.find(r, a + 1)
+            b = code.find(r, a + len(l))
             if a < 0 or b < 0:
                 break
             else:
-                c = self.subs_rep * str(len(self.storage))
+                c = '%%%' + str(len(self.storage)) + '%%%'
                 self.storage.append(code[a:b + len(r)])
                 code = ''.join([code[:a], c, code[b + len(r):]])
         return code
     def reinsert(self, code):
         for i in range(len(self.storage)):
-            c = self.subs_rep * str(i)
+            c = '%%%' + str(i) + '%%%'
             a = code.find(c)
-            b = a + self.subs_rep
+            b = a + len(c)
             code = ''.join([code[:a], self.storage[i], code[b:]])
         return code
 
