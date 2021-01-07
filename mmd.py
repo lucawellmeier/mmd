@@ -181,21 +181,25 @@ if __name__ == '__main__':
     newfile = os.path.splitext(filename)[0] + '.html'
     with open(newfile, 'w') as f:
         f.write(
-'''<html>
+'''<!DOCTYPE html>
+<html>
 <head>
 <meta charset="utf-8">
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/contrib/auto-render.min.js"></script>
 <script>
-MathJax = {
-  tex: {
-    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-    displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']]
-  },
-  svg: {
-    fontCache: 'global'
-  }
-};
+document.addEventListener("DOMContentLoaded", function() {
+window.renderMathInElement(document.body, {
+delimiters: [
+  {left: "$$", right: "$$", display: true},
+  {left: "$", right: "$", display: false},
+  {left: "\\\\[", right: "\\\\]", display: true},
+  {left: "\\\\(", right: "\\\\)", display: false}
+]});
+});
 </script>
 <style>
   body {
