@@ -3,6 +3,9 @@ import markdown2
 
 
 
+DIRS = ['DEFINITION', 'THEOREM', 'COROLLARY', 'PROPOSITION', 'LEMMA', 'PROOF', 
+        'EXAMPLE']
+
 class Parser:
     def __init__(self, code):
         self.lines = code.splitlines()
@@ -10,7 +13,7 @@ class Parser:
         self.pos = 0
         self.header_regex = re.compile(r'(#+)(.*)')
         self.begin_dir_regex = re.compile(
-                r'([A-Z]+)(\[([a-z0-9-]+)\])?( (.*))?')
+                r'({})(\[([a-z0-9-]+)\])?( (.*))?'.format('|'.join(DIRS)))
         self.identify_next_block()
     def identify_next_block(self):
         if self.pos == len(self.lines): return 

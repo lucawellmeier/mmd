@@ -3,12 +3,12 @@ from mmd import parse
 
 
 testcode1 = '''
-DEFN[3] subnormality
+DEFINITION[3] subnormality
 
 LEMMA[id5] Schur's lemma
 > Hallo
 
-THM Schur's theorem
+THEOREM Schur's theorem
 >
 >
 >
@@ -17,10 +17,10 @@ THM Schur's theorem
 def test_1():
     blocks = parse(testcode1)
     assert len(blocks) == 3
-    assert blocks[0]['type'] == 'DEFN'
+    assert blocks[0]['type'] == 'DEFINITION'
     assert blocks[1]['id'] == 'id5'
     assert blocks[1]['content'] == 'Hallo'
-    assert blocks[2]['type'] == 'THM'
+    assert blocks[2]['type'] == 'THEOREM'
     assert blocks[2]['id'] == ''
 
 
@@ -49,16 +49,16 @@ def test_2():
 
 testcode3 = '''
 # Ciao monde
-THM[1]
+THEOREM[1]
 >
 
-PROP
+PROPOSITION
 >
 >hahaha
 LEMMA[2]
 >
 ### Hallo welt
-EXM
+EXAMPLE
 > 
 '''
 def test_3():
@@ -92,3 +92,22 @@ THEOREM'''
 def test_5():
     blocks = parse(testcode5)
     assert len(blocks) == 1
+
+
+
+testcode6 = r'''
+## Rectifiable sets
+
+Throughout this section we consider $\mathbb{R}^d$ and an integer $1 \leq k \leq d$.
+
+A set $E \subset \mathbb{R}^d$ is called **countably $k$-rectifiable** if there
+exists a countable family $\{\Gamma_i\}_i$ of roto-transled graphs of Lipschitz functions 
+$\phi_i \colon D_i \subset \mathbb{R}^k \to \mathbb{R}^{d-k}$ such that
+\[ H^k\left(E \setminus \bigcup_i \Gamma_i \right) = 0. \]
+'''
+def test_6():
+    blocks = parse(testcode6)
+    assert len(blocks) == 3
+    assert blocks[0]['type'] == '##'
+    assert blocks[1]['type'] == ''
+    assert blocks[2]['type'] == ''
