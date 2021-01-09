@@ -65,32 +65,6 @@ class Parser:
 
 
 
-class SimpleNumberer:
-    def __init__(self, config):
-        self.numbered_headers = config['numbered_headers']
-        self.numbered_subblocks = config['numbered_subblocks']
-        self.counts = len(self.numbered_headers) * [0]
-        self.subblock_count = 0
-        self.last_level = 0
-    def track(self, block):
-        if block['type'] in self.numbered_headers:
-            level = self.numbered_headers.index(block['type'])
-            if level == 0:
-                self.subblock_count = 0
-            if level < self.last_level:
-                for i in range(level + 1, len(self.counts)):
-                    self.counts[i] = 0
-            self.counts[level] += 1
-            self.last_level = level
-            return tuple(self.counts[:level+1])
-        elif block['type'] in self.numbered_subblocks:
-            self.subblock_count += 1
-            return (self.counts[0], self.subblock_count)
-        else:
-            return ()
-
-
-
 class Numberer:
     def __init__(self, config):
         self.counts = config['numbering']
@@ -108,7 +82,6 @@ class Numberer:
                 self._reset_tree(child)
     def _track_in_tree(self, node, counts, block):
         if block['type'] in node['types']:
-            print(block['type'])
             node['count'] += 1
             for child in node['children']:
                 self._reset_tree(child)
@@ -141,7 +114,7 @@ class RefFinder:
 
 def parse(code, config, ref_replacer=lambda blocks,ref,name : ''):
     blocks = Parser(config, code).blocks
-    numberer = SimpleNumberer(config)
+    numberer = Numberer(config)
     for block in blocks:
         block.update({'number': str(numberer.track(block))[1:-1]})
     ref_finder = RefFinder(lambda ref,name : ref_replacer(blocks,ref,name))
