@@ -1,19 +1,16 @@
 import re
-import markdown2
 
 
-
-DIRS = ['DEFINITION', 'THEOREM', 'COROLLARY', 'PROPOSITION', 'LEMMA', 'PROOF', 
-        'EXAMPLE']
 
 class Parser:
-    def __init__(self, code):
+    def __init__(self, config, code):
         self.lines = code.splitlines()
         self.blocks = []
         self.pos = 0
         self.header_regex = re.compile(r'(#+)(.*)')
+        all_dirs_regex = '|'.join(config['all_directives'])
         self.begin_dir_regex = re.compile(
-                r'({})(\[([a-z0-9-]+)\])?( (.*))?'.format('|'.join(DIRS)))
+                r'({})(\[([a-z0-9-]+)\])?( (.*))?'.format(all_dirs_regex))
         self.identify_next_block()
     def identify_next_block(self):
         if self.pos == len(self.lines): return 
@@ -33,8 +30,12 @@ class Parser:
             return self.identify_next_block()
         self.add_paragraph()
         return self.identify_next_block()
-    def add_block(self, type_='', id_='', name='', content=''):
-        block = {'type': type_, 'id': id_, 'name': name, 'content': content}
+    def add_block(self, type_='', id_='', name='', content='', class_=''):
+        markers = {}
+        for cls in config['classes']:
+            markers['is_' + cls] = type_ in config['classes'][cls]
+        block = {'type': type_, 'id': id_, 'name': name, 
+            'content': content, **markers}
         self.blocks.append(block)
     def add_header(self, match):
         self.add_block(type_=match.group(1), name=match.group(2).strip())
@@ -65,9 +66,9 @@ class Parser:
 
 
 class SimpleNumberer:
-    def __init__(self, numbered_headers, numbered_subblocks):
-        self.numbered_headers = numbered_headers
-        self.numbered_subblocks = numbered_subblocks
+    def __init__(self, config):
+        self.numbered_headers = config['numbered_headers']
+        self.numbered_subblocks = config['numbered_subblocks']
         self.counts = len(self.numbered_headers) * [0]
         self.subblock_count = 0
         self.last_level = 0
@@ -108,12 +109,11 @@ class RefFinder:
 
 
 
-def parse(code, numberer=SimpleNumberer(numbered_headers=['##', '###'], 
-        numbered_subblocks=['LEMMA', 'THEOREM', 'PROPOSITION', 'COROLLARY']), 
-        ref_replacer=lambda blocks,ref,name : ''):
-    blocks = Parser(code).blocks
+def parse(code, config, ref_replacer=lambda blocks,ref,name : ''):
+    blocks = Parser(config, code).blocks
+    numberer = SimpleNumberer(config)
     for block in blocks:
-        block.update({'number': numberer.track(block)})
+        block.update({'number': str(numberer.track(block))[1:-1]})
     ref_finder = RefFinder(lambda ref,name : ref_replacer(blocks,ref,name))
     for block in blocks:
         ref_finder.replace_in(block)
@@ -121,15 +121,13 @@ def parse(code, numberer=SimpleNumberer(numbered_headers=['##', '###'],
 
 
 
-LATEX_DISPLAY_DELIMS = [ ('$$', '$$'), ('\\[', '\\]') ]
-LATEX_INLINE_DELIMS = [ ('$', '$'), ('\\(', '\\)') ]
-LATEX_DELIMS = LATEX_DISPLAY_DELIMS + LATEX_INLINE_DELIMS
-
 class LatexSanitizer:
-    def __init__(self):
+    def __init__(self, config):
+        self.latex_delims = config['latex_delimiters']
+        self.rep_delim = config['latex_sanitize_delimiter']
         self.storage = []
     def sanitize(self, code):
-        for pair in LATEX_DELIMS:
+        for pair in self.latex_delims:
             code = self._sanitize_perpair(pair, code)
         return code
     def _sanitize_perpair(self, pair, code):
@@ -141,23 +139,17 @@ class LatexSanitizer:
             if a < 0 or b < 0:
                 break
             else:
-                c = '%%%' + str(len(self.storage)) + '%%%'
+                c = self.rep_delim + str(len(self.storage)) + self.rep_delim
                 self.storage.append(code[a:b + len(r)])
                 code = ''.join([code[:a], c, code[b + len(r):]])
         return code
     def reinsert(self, code):
         for i in range(len(self.storage)):
-            c = '%%%' + str(i) + '%%%'
+            c = self.rep_delim + str(i) + self.rep_delim
             a = code.find(c)
             b = a + len(c)
             code = ''.join([code[:a], self.storage[i], code[b:]])
         return code
-
-def block_content_to_html(block):
-    sanitizer = LatexSanitizer()
-    sanitized_md = sanitizer.sanitize(block['content'])
-    sanitized_html = markdown2.markdown(sanitized_md)
-    return sanitizer.reinsert(sanitized_html)
 
 
 
@@ -168,6 +160,17 @@ def block_content_to_html(block):
 if __name__ == '__main__':
     import os
     import sys
+    import json
+    import markdown2
+    import chevron
+
+    def block_content_to_html(block, config):
+        sanitizer = LatexSanitizer(config)
+        sanitized_md = sanitizer.sanitize(block['content'])
+        sanitized_html = markdown2.markdown(sanitized_md)
+        return sanitizer.reinsert(sanitized_html)
+
+    config = json.loads(open('/home/luca/zettelkasten/config.json', 'r').read())
     filename = sys.argv[1]
     with open(filename, 'r') as f:
         code = f.read()
@@ -179,54 +182,28 @@ if __name__ == '__main__':
             return '<a href="#{}">{}</a>'.format(ref,name)
         else:
             return '<strong style="color: red;">reference {} not found</strong>'.format(ref)
-    blocks = parse(code, ref_replacer=ref_replacer)
+    blocks = parse(code, config, ref_replacer=ref_replacer)
+    for block in blocks:
+        block['content'] = block_content_to_html(block, config)
 
+    args = {
+        'template': '{{> index}}',
+        'partials_path': config['templates_path'],
+        'partials_ext': 'ms.html',
+        'data': {
+            'blocks': blocks,
+
+            'length': lambda text,render: str(len(render(text))),
+            'tuple_to_dotted': lambda text,render: '.'.join([x.strip() for x in render(text).split(',') if x]),
+            'tuple_to_scored': lambda text,render: '_'.join([x.strip() for x in render(text).split(',') if x]),
+            'titelize': lambda text,render: render(text).title()
+        },
+    }
+    html = chevron.render(**args)
     newfile = os.path.splitext(filename)[0] + '.html'
-    with open(newfile, 'w') as f:
-        f.write(
-'''<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/contrib/auto-render.min.js"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-window.renderMathInElement(document.body, {
-delimiters: [
-  {left: "$$", right: "$$", display: true},
-  {left: "$", right: "$", display: false},
-  {left: "\\\\[", right: "\\\\]", display: true},
-  {left: "\\\\(", right: "\\\\)", display: false}
-]});
-});
-</script>
-<style>
-  body {
-    font-size: 14px;
-    max-width: 672px;
-    margin: 24px auto;
-    padding: 0 8px;
-  }
-  .statement {
-    border: 1px solid lightgrey;
-    padding: 0 8px;
-    padding-top: 8px;
-  }
-  .proof p:first-of-type {
-    display: inline;
-  }
-  .proof p:last-child:after {
-    content: " \\220e";
-  }
-</style>
-</head>
-<body>
-''')
-        toc_inserted = False
+    open(newfile, 'w').write(html)
+        
+    '''toc_inserted = False
         for block in blocks:
             content = block_content_to_html(block)
             if block['type'] in ['LEMMA', 'THEOREM', 'PROPOSITION', 'COROLLARY']:
@@ -259,7 +236,4 @@ delimiters: [
                 html = '<h{} id={}>{}{}</h{}>\n'.format(lvl, id_, num, block['name'], lvl)
                 f.write(html)
             else:
-                f.write(content + '\n')
-        f.write(
-'''</body>
-</html>''')
+                f.write(content + '\n')'''
