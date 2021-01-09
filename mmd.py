@@ -91,6 +91,36 @@ class SimpleNumberer:
 
 
 
+class Numberer:
+    def __init__(self, config):
+        self.counts = config['numbering']
+        for first_level in self.counts:
+            self._reset_tree(first_level)
+    def track(self, block):
+        for first_level in self.counts:
+            counts = self._track_in_tree(first_level, [], block)
+            if counts: return counts
+        return []
+    def _reset_tree(self, node):
+        node.update({'count': 0})
+        if 'children' in node:
+            for child in node['children']:
+                self._reset_tree(child)
+    def _track_in_tree(self, node, counts, block):
+        if block['type'] in node['types']:
+            print(block['type'])
+            node['count'] += 1
+            for child in node['children']:
+                self._reset_tree(child)
+            return counts + [node['count']]
+        else:
+            for child in node['children']:
+                counts = self._track_in_tree(child, counts + [node['count']], block)
+                if counts: return counts
+        return []
+
+
+
 class RefFinder:
     def __init__(self, replacer):
         self.ref_replacer = replacer
