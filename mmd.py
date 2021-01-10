@@ -173,11 +173,6 @@ if __name__ == '__main__':
         sanitized_html = markdown2.markdown(sanitized_md)
         return sanitizer.reinsert(sanitized_html)
 
-    config = json.loads(open('/home/luca/zettelkasten/config.json', 'r').read())
-    filename = sys.argv[1]
-    with open(filename, 'r') as f:
-        code = f.read()
-
     def ref_replacer(blocks, ref, name):
         found = next((block for block in blocks if block['id'] == ref), [None])
         if found != None:
@@ -185,18 +180,21 @@ if __name__ == '__main__':
             return '<a href="#{}">{}</a>'.format(ref,name)
         else:
             return '<strong style="color: red;">reference {} not found</strong>'.format(ref)
+
+    config = json.loads(open('/home/luca/zettelkasten/config.json', 'r').read())
+    filename = sys.argv[1]
+    with open(filename, 'r') as f: code = f.read()
     blocks = parse(code, config, ref_replacer=ref_replacer)
     for block in blocks:
         block['content'] = block_content_to_html(block, config)
-
     args = {
         'template': '{{> index}}',
         'partials_path': config['templates_path'],
         'partials_ext': 'ms.html',
         'data': {
             'blocks': blocks,
-
             'length': lambda text,render: str(len(render(text))),
+            # TODO: rename to list because its not a tuple anymore
             'tuple_to_dotted': lambda text,render: '.'.join([x.strip() for x in render(text).split(',') if x]),
             'tuple_to_scored': lambda text,render: '_'.join([x.strip() for x in render(text).split(',') if x]),
             'titelize': lambda text,render: render(text).title()
@@ -205,38 +203,3 @@ if __name__ == '__main__':
     html = chevron.render(**args)
     newfile = os.path.splitext(filename)[0] + '.html'
     open(newfile, 'w').write(html)
-        
-    '''toc_inserted = False
-        for block in blocks:
-            content = block_content_to_html(block)
-            if block['type'] in ['LEMMA', 'THEOREM', 'PROPOSITION', 'COROLLARY']:
-                html = '<p><div id="{}" class="statement">'.format(block['id'])
-                num = ' ' + '.'.join([str(c) for c in block['number']]) if block['number'] else ''
-                name = ' ({})'.format(block['name']) if block['name'] else ''
-                html += '<strong>{}{}</strong>{}:'.format(block['type'].title(), num, name)
-                html += content
-                html += '</div></p>\n'
-                f.write(html)
-            elif block['type'] == 'PROOF':
-                html = '<p><div class="proof"><strong>Proof.</strong> '
-                html += content
-                html += '</div>\n'
-                f.write(html)
-            elif re.fullmatch('#+', block['type']):
-                lvl = len(block['type'])
-                if not toc_inserted and lvl == 2:
-                    toc_inserted = True
-                    headers = [block for block in blocks if re.fullmatch('#+', block['type']) and 2 <= len(block['type']) and len(block['type']) <= 3]
-                    for header in headers:
-                        id_ = '_'.join([str(c) for c in header['number']])
-                        num = '.'.join([str(c) for c in header['number']]) + '. '
-                        title = num + header['name']
-                        indent = (len(header['type']) - 1) * 8
-                        f.write('<a href="#{}" style="margin-left: {}px">{}</a><br>\n'.format(id_, indent, title))
-                    f.write('\n')
-                id_ = '_'.join([str(c) for c in block['number']])
-                num = '.'.join([str(c) for c in block['number']]) + '. ' if block['number'] else ''
-                html = '<h{} id={}>{}{}</h{}>\n'.format(lvl, id_, num, block['name'], lvl)
-                f.write(html)
-            else:
-                f.write(content + '\n')'''
