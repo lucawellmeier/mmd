@@ -4,6 +4,7 @@ import re
 
 class Parser:
     def __init__(self, config, code):
+        self.classes = config['classes']
         self.lines = code.splitlines()
         self.blocks = []
         self.pos = 0
@@ -32,8 +33,8 @@ class Parser:
         return self.identify_next_block()
     def add_block(self, type_='', id_='', name='', content='', class_=''):
         markers = {}
-        for cls in config['classes']:
-            markers['is_' + cls] = type_ in config['classes'][cls]
+        for cls in self.classes:
+            markers['is_' + cls] = type_ in self.classes[cls]
         block = {'type': type_, 'id': id_, 'name': name, 
             'content': content, **markers}
         self.blocks.append(block)

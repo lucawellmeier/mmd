@@ -1,6 +1,18 @@
-from mmd import parse
+from mmd import Parser
 
 
+
+config1 = {
+    "all_directives": [
+        "LEMMA", "THEOREM", "COROLLARY", "PROPOSITION", "PROOF", "DEFINITION", "EXAMPLE",
+    ],
+    "classes": {
+        "header": ["#", "##", "###", "####"],
+        "paragraph": [""],
+        "statement": ["LEMMA", "THEOREM", "COROLLARY", "PROPOSITION"],
+        "proof": ["PROOF"]
+    },
+}
 
 testcode1 = '''
 DEFINITION[3] subnormality
@@ -15,7 +27,7 @@ THEOREM Schur's theorem
 > ciao
 '''
 def test_1():
-    blocks = parse(testcode1)
+    blocks = Parser(config1, testcode1).blocks
     assert len(blocks) == 3
     assert blocks[0]['type'] == 'DEFINITION'
     assert blocks[1]['id'] == 'id5'
@@ -39,7 +51,7 @@ PROOF
 
 '''
 def test_2():
-    blocks = parse(testcode2)
+    blocks = Parser(config1, testcode2).blocks
     assert len(blocks) == 2
     assert blocks[0]['type'] == '#' and blocks[1]['type'] == 'PROOF'
     assert blocks[1]['name'] == '' and blocks[1]['id'] == ''
@@ -62,7 +74,7 @@ EXAMPLE
 > 
 '''
 def test_3():
-    blocks = parse(testcode3)
+    blocks = Parser(config1, testcode3).blocks
     assert len(blocks) == 6
     assert blocks[3]['type'] == 'LEMMA'
     assert blocks[4]['type'] == '###'
@@ -81,7 +93,7 @@ A measure $\mu \colon X \to \mathbb{R}^p$ is a countably additive mapping, i.e.
 for a disjoint union $B = \bigsqcup_{i \in \mathbb{N}} B_i$.
 '''
 def test_4():
-    blocks = parse(testcode4)
+    blocks = Parser(config1, testcode4).blocks
     assert len(blocks) == 2
     assert blocks[1]['content'].count('\n') == 5
 
@@ -90,7 +102,7 @@ def test_4():
 testcode5 = r'''
 THEOREM'''
 def test_5():
-    blocks = parse(testcode5)
+    blocks = Parser(config1, testcode5).blocks
     assert len(blocks) == 1
 
 
@@ -106,7 +118,7 @@ $\phi_i \colon D_i \subset \mathbb{R}^k \to \mathbb{R}^{d-k}$ such that
 \[ H^k\left(E \setminus \bigcup_i \Gamma_i \right) = 0. \]
 '''
 def test_6():
-    blocks = parse(testcode6)
+    blocks = Parser(config1, testcode6).blocks
     assert len(blocks) == 3
     assert blocks[0]['type'] == '##'
     assert blocks[1]['type'] == ''
