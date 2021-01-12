@@ -45,7 +45,7 @@ class Parser:
         if self.pos < len(self.lines):
             line = self.lines[self.pos]
             while line.startswith('>'):
-                content += line[1:] + '\n'
+                content += line[2:] + '\n'
                 self.pos += 1
                 if self.pos == len(self.lines):
                     break
@@ -127,7 +127,7 @@ def parse(code, config, ref_replacer=lambda blocks,ref,name : ''):
 
 class LatexSanitizer:
     def __init__(self, config):
-        self.latex_delims = config['latex_delimiters']
+        self.latex_delims = [(x['left'], x['right']) for x in config['latex_display_delims'] + config['latex_inline_delims']]
         self.rep_delim = config['latex_sanitize_delimiter']
         self.storage = []
     def sanitize(self, code):
@@ -193,12 +193,14 @@ if __name__ == '__main__':
         'partials_path': config['templates_path'],
         'partials_ext': 'ms.html',
         'data': {
+            'config': config,
             'blocks': blocks,
             'length': lambda text,render: str(len(render(text))),
             # TODO: rename to list because its not a tuple anymore
             'tuple_to_dotted': lambda text,render: '.'.join([x.strip() for x in render(text).split(',') if x]),
             'tuple_to_scored': lambda text,render: '_'.join([x.strip() for x in render(text).split(',') if x]),
-            'titelize': lambda text,render: render(text).title()
+            'titelize': lambda text,render: render(text).title(),
+            'escape_backslashes': lambda text,render: render(text).replace('\\', '\\\\')
         },
     }
     html = chevron.render(**args)
